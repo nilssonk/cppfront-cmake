@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.30)
+cmake_minimum_required(VERSION 3.23)
 project(
     cppfront
     LANGUAGES CXX
@@ -22,10 +22,27 @@ cmake_dependent_option(
 )
 mark_as_advanced(CPPFRONT_INSTALL_RULES)
 
+set(CPPFRONT_VERSION "v0.7.4" CACHE STRING "Version of cppfront to use")
+
+# Fetch sources
+include(FetchContent)
+FetchContent_Declare(
+    cppfront_real_fetch
+    GIT_REPOSITORY https://github.com/hsutter/cppfront
+    GIT_TAG ${CPPFRONT_VERSION}
+    GIT_SHALLOW TRUE
+)
+FetchContent_GetProperties(cppfront_real_fetch)
+if(NOT cppfront_real_fetch_POPULATED)
+    FetchContent_Populate(cppfront_real_fetch)
+endif()
+
+set(SRC_DIR ${cppfront_real_fetch_SOURCE_DIR})
+
 ##
 # Target definition for cppfront executable
 
-add_executable(cppfront_cppfront cppfront/source/cppfront.cpp)
+add_executable(cppfront_cppfront ${SRC_DIR}/source/cppfront.cpp)
 add_executable(cppfront::cppfront ALIAS cppfront_cppfront)
 set_target_properties(
     cppfront_cppfront
@@ -33,19 +50,8 @@ set_target_properties(
     OUTPUT_NAME cppfront
     EXPORT_NAME cppfront
 )
+target_link_libraries(cppfront_cppfront INTERFACE cppfront_real_fetch)
 target_compile_features(cppfront_cppfront PRIVATE cxx_std_20)
-target_sources(
-    cppfront_cppfront
-    PRIVATE
-    FILE_SET HEADERS
-    BASE_DIRS cppfront/source
-    FILES cppfront/source/common.h
-          cppfront/source/io.h
-          cppfront/source/lex.h
-          cppfront/source/parse.h
-          cppfront/source/reflect.h
-          cppfront/source/sema.h
-)
 
 ##
 # Target definition for cpp2util runtime library
@@ -54,13 +60,15 @@ add_library(cppfront_cpp2util INTERFACE)
 add_library(cppfront::cpp2util ALIAS cppfront_cpp2util)
 set_target_properties(cppfront_cpp2util PROPERTIES EXPORT_NAME cpp2util)
 
+target_link_libraries(cppfront_cpp2util INTERFACE cppfront_real_fetch)
 target_compile_features(cppfront_cpp2util INTERFACE cxx_std_20)
 target_sources(
     cppfront_cpp2util
     INTERFACE
     FILE_SET HEADERS
-    BASE_DIRS cppfront/include
-    FILES cppfront/include/cpp2util.h cppfront/include/cpp2regex.h
+    BASE_DIRS ${SRC_DIR}/include
+    FILES ${SRC_DIR}/include/cpp2util.h
+          ${SRC_DIR}/include/cpp2regex.h
 )
 
 if (NOT CPPFRONT_NO_SYSTEM)
@@ -69,7 +77,7 @@ if (NOT CPPFRONT_NO_SYSTEM)
     target_include_directories(
         cppfront_cpp2util
         SYSTEM INTERFACE
-        "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/cppfront/include>"
+        "$<BUILD_INTERFACE:${SRC_DIR}/include>"
     )
 endif ()
 
