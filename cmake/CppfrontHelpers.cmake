@@ -19,7 +19,7 @@ function(_cppfront_unique_name base hash outvar)
     message(FATAL_ERROR "Could not compute a unique name using ${base} and ${hash}")
 endfunction()
 
-function(_cppfront_generate_source src out)
+function(_cppfront_generate_source src out args)
     file(REAL_PATH "${src}" src)
     string(SHA256 src_hash "${src}")
 
@@ -43,7 +43,7 @@ function(_cppfront_generate_source src out)
 
     add_custom_command(
         OUTPUT "${out_file}"
-        COMMAND cppfront::cppfront "${src}" -o "${out_file}" ${CPPFRONT_FLAGS}
+        COMMAND cppfront::cppfront ${args} "${src}" -o "${out_file}" ${CPPFRONT_FLAGS}
         DEPENDS cppfront::cppfront "${src}"
         VERBATIM
     )
@@ -52,16 +52,16 @@ function(_cppfront_generate_source src out)
     set("${out}" "${out_file}" PARENT_SCOPE)
 endfunction()
 
-function(cppfront_generate_cpp srcs)
+function(cppfront_generate_cpp srcs args)
     set(cpp2srcs "")
     foreach (src IN LISTS ARGN)
-        _cppfront_generate_source("${src}" cpp2)
+        _cppfront_generate_source("${src}" cpp2 ${args})
         list(APPEND cpp2srcs "${cpp2}")
     endforeach ()
     set("${srcs}" "${cpp2srcs}" PARENT_SCOPE)
 endfunction()
 
-function(cppfront_enable)
+function(cppfront_enable args)
     cmake_parse_arguments(PARSE_ARGV 0 ARG "" "" "TARGETS")
 
     foreach (tgt IN LISTS ARG_TARGETS)
@@ -77,7 +77,7 @@ function(cppfront_enable)
             endif ()
             
             target_link_libraries("${tgt}" ${visibility} cppfront::cpp2util)
-            cppfront_generate_cpp(cpp1sources ${sources})
+            cppfront_generate_cpp(cpp1sources ${sources} ${args})
             target_sources("${tgt}" ${visibility} ${cpp1sources})
             set_source_files_properties(${cpp1sources} PROPERTIES CXX_SCAN_FOR_MODULES ON)
         endif ()
