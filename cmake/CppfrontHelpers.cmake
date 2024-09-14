@@ -19,7 +19,7 @@ function(_cppfront_unique_name base hash outvar)
     message(FATAL_ERROR "Could not compute a unique name using ${base} and ${hash}")
 endfunction()
 
-function(_cppfront_generate_source src out args)
+function(_cppfront_generate_source src out)
     file(REAL_PATH "${src}" src)
     string(SHA256 src_hash "${src}")
 
@@ -43,7 +43,7 @@ function(_cppfront_generate_source src out args)
 
     add_custom_command(
         OUTPUT "${out_file}"
-        COMMAND cppfront::cppfront ${args} "${src}" -o "${out_file}" ${CPPFRONT_FLAGS}
+        COMMAND cppfront::cppfront ${ARGN} "${src}" -o "${out_file}" ${CPPFRONT_FLAGS}
         DEPENDS cppfront::cppfront "${src}"
         VERBATIM
     )
@@ -52,17 +52,25 @@ function(_cppfront_generate_source src out args)
     set("${out}" "${out_file}" PARENT_SCOPE)
 endfunction()
 
-function(cppfront_generate_cpp srcs args)
+function(cppfront_generate_cpp out_src_list)
+    set(options "")
+    set(singleArgs "")
+    set(multiArgs SRCS ARGS)
+    cmake_parse_arguments(ARG "${options}" "${singleArgs}" "${multiArgs}" "${ARGN}")
+
     set(cpp2srcs "")
-    foreach (src IN LISTS ARGN)
-        _cppfront_generate_source("${src}" cpp2 ${args})
+    foreach (src IN LISTS ARG_SRCS)
+        _cppfront_generate_source("${src}" cpp2 ${ARG_ARGS})
         list(APPEND cpp2srcs "${cpp2}")
     endforeach ()
-    set("${srcs}" "${cpp2srcs}" PARENT_SCOPE)
+    set("${out_src_list}" "${cpp2srcs}" PARENT_SCOPE)
 endfunction()
 
-function(cppfront_enable args)
-    cmake_parse_arguments(PARSE_ARGV 0 ARG "" "" "TARGETS")
+function(cppfront_enable)
+    set(options "")
+    set(singleArgs "")
+    set(multiArgs TARGETS ARGS)
+    cmake_parse_arguments(ARG "${options}" "${singleArgs}" "${multiArgs}" ${ARGN})
 
     foreach (tgt IN LISTS ARG_TARGETS)
         get_property(sources TARGET "${tgt}" PROPERTY SOURCES)
@@ -77,7 +85,7 @@ function(cppfront_enable args)
             endif ()
             
             target_link_libraries("${tgt}" ${visibility} cppfront::cpp2util)
-            cppfront_generate_cpp(cpp1sources ${sources} ${args})
+            cppfront_generate_cpp(cpp1sources SRCS ${sources} ARGS ${ARG_ARGS})
             target_sources("${tgt}" ${visibility} ${cpp1sources})
             set_source_files_properties(${cpp1sources} PROPERTIES CXX_SCAN_FOR_MODULES ON)
         endif ()
